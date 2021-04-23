@@ -26,4 +26,20 @@ class ProductImage(models.Model):
     image = models.ImageField(upload_to='products', blank=True, null=True)
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='images')
 
+class Comment(models.Model):
+    comment = models.CharField(max_length=255)
+    created = models.DateTimeField(auto_now_add=True)
+    author = models.ForeignKey(MyUser, on_delete=models.DO_NOTHING, related_name='comments')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='comments')
 
+    def __str__(self):
+        return self.comment
+
+    class Meta:
+        ordering = ('created', )
+
+
+class Like(models.Model):
+    user = models.ForeignKey(MyUser, on_delete=models.CASCADE, related_name='likes')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='likes')
+    like = models.BooleanField(default=False)

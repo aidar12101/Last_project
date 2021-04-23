@@ -8,10 +8,13 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import generics, status
+from rest_framework import generics, status, mixins
 from rest_framework import viewsets
-from main.models import Category, Product, ProductImage
-from main.serializers import CategorySerializer, ProductSerializer, ProductImageSerializer
+from rest_framework.viewsets import ModelViewSet
+
+from main.models import Category, Product, ProductImage, Comment, Like
+from main.serializers import CategorySerializer, ProductSerializer, ProductImageSerializer, CommentSerializer, \
+    LikeSerializer
 from .permissions import IsPostAuthor
 
 
@@ -35,14 +38,14 @@ from .permissions import IsPostAuthor
 #             product_saved = serializer.save()
 #         return Response(serializer.data)
 
-class MyPaginationClass(PageNumberPagination):
-    page_size = 3
-
-    def get_paginated_response(self, data):
-        for i in range(self.page_size):
-            text = data[i]['text']
-            data[i]['text'] = text[:15] + '...'
-        return super().get_paginated_response(data)
+# class MyPaginationClass(PageNumberPagination):
+#     page_size = 3
+#
+#     def get_paginated_response(self, data):
+#         for i in range(self.page_size):
+#             text = data[i]['text']
+#             data[i]['text'] = text[:15] + '...'
+#         return super().get_paginated_response(data)
 
 
 
@@ -71,15 +74,7 @@ class CategoryListView(generics.ListAPIView):
 # class ProductDeleteView(generics.DestroyAPIView):
 #     queryset = Product.objects.all()
 #     serializer_class = ProductSerializer
-
-
-class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all()
-    serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated, ]
-    pagination_class = MyPaginationClass
-
-
+class PermissionMixin:
     def get_permissions(self):
         if self.action in ['update', 'partial_update', 'destroy']:
             permissions = [IsPostAuthor, ]
@@ -87,14 +82,10 @@ class ProductViewSet(viewsets.ModelViewSet):
             permissions = [IsAuthenticated,  ]
         return [permission() for permission in permissions]
 
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        days_count = int(self.request.query_params('days', 0))
-        if days_count > 0:
-            start_date = timezone.now() - timedelta(days=days_count)
-            queryset = queryset.filter(created_at__gte=start_date)
-        return queryset
-
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated, ]
 
     @action(detail=False, methods=['get'])
     def own(self, request, pk=None):
@@ -119,6 +110,21 @@ class ProductImageView(generics.ListCreateAPIView):
 
     def get_serializer_context(self):
         return {'request': self.request}
+
+class CommentViewSet(PermissionMixin, ModelViewSet):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    permission_classes = [IsAuthenticated, ]
+
+
+class LikeViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
+    queryset = Like.objects.all()
+    serializer_class = LikeSerializer
+    permission_classes = [IsAuthenticated, ]
+
+    def get_serializer_context(self):
+        return {'request': self.request, 'action': self.action}
+
 
 
 
